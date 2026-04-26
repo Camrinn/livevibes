@@ -1,0 +1,246 @@
+import React, { useState } from 'react'
+import { currentUser, venues } from '../data/mockData'
+
+export default function Profile() {
+  const [editing, setEditing] = useState(false)
+  const [bio, setBio] = useState(currentUser.bio)
+  const [tempBio, setTempBio] = useState(bio)
+
+  const recentVenues = venues.slice(0, 3)
+
+  return (
+    <div className="page">
+      {/* Header */}
+      <div style={{
+        padding: '52px 20px 24px',
+        textAlign: 'center',
+        background: 'linear-gradient(180deg, rgba(255,107,43,0.08) 0%, transparent 100%)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        {/* Avatar */}
+        <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
+          <div style={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #FF6B2B, #FF3B5C)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-display)',
+            fontSize: 28,
+            fontWeight: 800,
+            color: 'white',
+            boxShadow: '0 0 30px rgba(255,107,43,0.4)',
+          }}>
+            {currentUser.avatar}
+          </div>
+          {/* Online indicator */}
+          <div style={{
+            position: 'absolute',
+            bottom: 4, right: 4,
+            width: 14, height: 14,
+            borderRadius: '50%',
+            background: '#10F587',
+            border: '2px solid var(--bg-primary)',
+            boxShadow: '0 0 8px #10F587',
+          }} />
+        </div>
+
+        <h1 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 22,
+          fontWeight: 800,
+          color: 'var(--text-primary)',
+          marginBottom: 2,
+        }}>
+          {currentUser.name}
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+          {currentUser.handle}
+        </p>
+
+        {/* Bio */}
+        {editing ? (
+          <div style={{ marginBottom: 12 }}>
+            <textarea
+              value={tempBio}
+              onChange={e => setTempBio(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-active)',
+                borderRadius: 12,
+                padding: '10px 12px',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                textAlign: 'center',
+                resize: 'none',
+                outline: 'none',
+                minHeight: 60,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setEditing(false)}>Cancel</button>
+              <button className="btn-primary" style={{ flex: 1 }} onClick={() => { setBio(tempBio); setEditing(false) }}>Save</button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 14 }}>{bio}</p>
+        )}
+
+        {!editing && (
+          <button
+            className="btn-secondary"
+            style={{ maxWidth: 200, margin: '0 auto' }}
+            onClick={() => { setTempBio(bio); setEditing(true) }}
+          >
+            Edit Profile
+          </button>
+        )}
+      </div>
+
+      <div style={{ padding: '20px 16px 100px' }}>
+        {/* Stats */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+          {[
+            { label: 'Vibe Points', value: currentUser.vibePoints, icon: '⚡', color: '#FF6B2B' },
+            { label: 'Friends', value: currentUser.friends, icon: '👥', color: '#8B5CF6' },
+            { label: 'Check-ins', value: 12, icon: '📍', color: '#00D4FF' },
+          ].map(s => (
+            <div key={s.label} className="glass-card" style={{ flex: 1, padding: '14px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
+              <div style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 20,
+                fontWeight: 800,
+                color: s.color,
+                lineHeight: 1,
+              }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Badges */}
+        <div className="section-header">
+          <span className="section-title">Badges</span>
+        </div>
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          marginBottom: 24,
+          overflowX: 'auto',
+          paddingBottom: 4,
+        }}>
+          {[
+            { icon: '🔥', label: 'Lit Regular', earned: true },
+            { icon: '🌃', label: 'Night Owl', earned: true },
+            { icon: '📍', label: 'Explorer', earned: true },
+            { icon: '🏆', label: 'Top Rater', earned: false },
+            { icon: '👑', label: 'Ambassador', earned: false },
+          ].map(b => (
+            <div key={b.label} style={{
+              flexShrink: 0,
+              textAlign: 'center',
+              opacity: b.earned ? 1 : 0.3,
+            }}>
+              <div style={{
+                width: 52, height: 52,
+                borderRadius: 16,
+                background: b.earned ? 'rgba(255,107,43,0.15)' : 'var(--bg-card)',
+                border: b.earned ? '1px solid rgba(255,107,43,0.3)' : '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22,
+                marginBottom: 4,
+              }}>
+                {b.icon}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-secondary)', width: 60, textAlign: 'center' }}>
+                {b.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent activity */}
+        <div className="section-header">
+          <span className="section-title">Recent Activity</span>
+        </div>
+        {recentVenues.map(venue => (
+          <div key={venue.id} style={{
+            display: 'flex',
+            gap: 12,
+            padding: '12px 14px',
+            borderRadius: 14,
+            marginBottom: 8,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            alignItems: 'center',
+          }}>
+            <span style={{ fontSize: 20 }}>{getVenueEmoji(venue.type)}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{venue.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Checked in · 2 days ago</div>
+            </div>
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              color: '#FF6B2B',
+              background: 'rgba(255,107,43,0.1)',
+              padding: '3px 8px',
+              borderRadius: 8,
+            }}>
+              +20 pts
+            </span>
+          </div>
+        ))}
+
+        {/* Settings */}
+        <div className="section-header" style={{ marginTop: 24 }}>
+          <span className="section-title">Settings</span>
+        </div>
+        {[
+          { icon: '🔔', label: 'Push Notifications', sub: 'Deals, vibes, and friend activity' },
+          { icon: '📍', label: 'Location', sub: 'Required for check-ins' },
+          { icon: '👁', label: 'Visibility', sub: 'Show me on Who\'s Here' },
+          { icon: '🔒', label: 'Privacy', sub: 'Who can see your profile' },
+        ].map(s => (
+          <div key={s.label} style={{
+            display: 'flex',
+            gap: 12,
+            padding: '14px 16px',
+            borderRadius: 14,
+            marginBottom: 8,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            alignItems: 'center',
+            cursor: 'pointer',
+          }}>
+            <span style={{ fontSize: 20 }}>{s.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{s.sub}</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function getVenueEmoji(type) {
+  const map = {
+    'Sports Bar': '🏈',
+    'Live Music Bar': '🎸',
+    'Irish Pub': '🍺',
+    'Nightclub': '🎧',
+    'Rooftop Bar': '🌃',
+  }
+  return map[type] || '🍻'
+}
