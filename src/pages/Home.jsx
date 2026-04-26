@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import VenueCard from '../components/VenueCard'
-import { venues, friends, liveActivity, cityStats } from '../data/mockData'
 import { getVibeLabel } from '../components/VibeScore'
+import { useVenues } from '../hooks/useVenues'
+import { useLiveActivity } from '../hooks/useLiveActivity'
+import { useApp } from '../context/AppContext'
+import { useCheckin } from '../hooks/useCheckin'
 
 const FILTERS = ['All', 'Lit 🔥', 'Vibing 😎', 'Deals 🍹', 'Nearby 📍', 'Clubs 🎧']
 
@@ -18,10 +21,35 @@ const VENUE_EMOJI = {
   'Waterfront Bar': '⚓',
 }
 
+const STALE_HOURS = 4
+
 export default function Home() {
-  const [filter, setFilter] = useState('All')
-  const [search, setSearch] = useState('')
+  const [filter, setFilter]           = useState('All')
+  const [search, setSearch]           = useState('')
+  const [staleDismissed, setStaleDismissed] = useState(false)
   const navigate = useNavigate()
+
+  const { venues } = useVenues()
+  const { user, checkedInVenueId, checkedInAt, checkOut } = useApp()
+  const { checkOut: doCheckOut } = useCheckin()
+  const { activity, friendsOut, peopleOut } = useLiveActivity(user?.id)
+
+  const staleVenue = checkedInVenueId
+    ? venues.find(v => String(v.id) === String(checkedInVenueId))
+    : null
+  const isStale = !staleDismissed &&
+    checkedInAt &&
+    (Date.now() - new Date(checkedInAt)) > STALE_HOURS * 60 * 60 * 1000
+
+  async function handleStillHere() {
+    setStaleDismissed(true)
+  }
+
+  async function handleStaleCheckOut() {
+    await doCheckOut(user?.id)
+    checkOut()
+    setStaleDismissed(true)
+  }
 
   const hotVenue = [...venues].sort((a, b) => b.vibeScore - a.vibeScore)[0]
 
@@ -93,7 +121,7 @@ export default function Home() {
               </span>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              📍 Philadelphia · {cityStats.totalOut.toLocaleString()} people out tonight
+              📍 Philadelphia · {peopleOut.toLocaleString()} people out tonight
             </p>
           </div>
           <div style={{
@@ -154,30 +182,66 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Stale check-in banner */}
+      {isStale && staleVenue && (
+        <div style={{
+          margin: '8px 16px 0',
+          padding: '12px 16px',
+          borderRadius: 14,
+          background: 'rgba(255,107,43,0.08)',
+          border: '1px solid rgba(255,107,43,0.25)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 20 }}>📍</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#FF6B2B' }}>Still at {staleVenue.name}?</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>You checked in {STALE_HOURS}+ hours ago</div>
+          </div>
+          <button
+            onClick={handleStillHere}
+            style={{
+              padding: '5px 10px', borderRadius: 8,
+              border: '1px solid rgba(255,107,43,0.3)',
+              background: 'rgba(255,107,43,0.1)',
+              color: '#FF6B2B', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Still here
+          </button>
+          <button
+            onClick={handleStaleCheckOut}
+            style={{
+              padding: '5px 10px', borderRadius: 8,
+              border: '1px solid rgba(255,59,92,0.3)',
+              background: 'rgba(255,59,92,0.08)',
+              color: '#FF3B5C', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Check out
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       <div style={{ padding: '0 16px 20px' }}>
 
         {/* Friends activity row */}
-        {filter === 'All' && !search && (
+        {filter === 'All' && !search && friendsOut.length > 0 && (
           <div style={{ marginBottom: 20, marginTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <span style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 14,
-                fontWeight: 700,
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.8px',
+                fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
+                color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.8px',
               }}>
                 Friends Out Tonight
               </span>
-              <span style={{ fontSize: 12, color: 'var(--accent-cyan)', cursor: 'pointer' }}>
-                {friends.length} active
+              <span style={{ fontSize: 12, color: 'var(--accent-cyan)' }}>
+                {friendsOut.length} active
               </span>
             </div>
             <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 4 }}>
-              {friends.map(f => {
-                const venue = venues.find(v => v.id === f.venueId)
+              {friendsOut.map(f => {
+                const venue = venues.find(v => String(v.id) === String(f.venueId))
                 const { color } = getVibeLabel(venue?.vibeScore || 0)
                 return (
                   <div
@@ -186,23 +250,18 @@ export default function Home() {
                     style={{ flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   >
                     <div style={{
-                      width: 52, height: 52,
-                      borderRadius: '50%',
+                      width: 52, height: 52, borderRadius: '50%',
                       background: 'linear-gradient(135deg, rgba(255,107,43,0.25), rgba(139,92,246,0.25))',
                       border: `2.5px solid ${color}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontFamily: 'var(--font-display)',
-                      fontWeight: 700,
-                      fontSize: 15,
-                      color: 'var(--text-primary)',
-                      boxShadow: `0 0 14px ${color}44`,
-                      marginBottom: 6,
+                      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15,
+                      color: 'var(--text-primary)', boxShadow: `0 0 14px ${color}44`, marginBottom: 6,
                     }}>
                       {f.avatar}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 600 }}>{f.name}</div>
-                    <div style={{ fontSize: 10, color: color, marginTop: 1 }}>
-                      {f.venueName.split(' ')[0]}
+                    <div style={{ fontSize: 10, color, marginTop: 1 }}>
+                      {(f.venueName ?? '').split(' ')[0]}
                     </div>
                   </div>
                 )
@@ -212,7 +271,7 @@ export default function Home() {
         )}
 
         {/* Hot Tonight hero card */}
-        {filter === 'All' && !search && (
+        {filter === 'All' && !search && hotVenue && (
           <div
             onClick={() => navigate(`/venue/${hotVenue.id}`)}
             className="animate-in"
@@ -321,16 +380,12 @@ export default function Home() {
         </div>
 
         {/* Live activity feed */}
-        {filter === 'All' && !search && (
+        {filter === 'All' && !search && activity.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             <div className="section-header">
               <span style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 14,
-                fontWeight: 700,
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.8px',
+                fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
+                color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.8px',
               }}>
                 Live Activity
               </span>
@@ -339,50 +394,46 @@ export default function Home() {
                 fontSize: 11, color: '#10F587', fontWeight: 600,
               }}>
                 <span style={{
-                  width: 5, height: 5, borderRadius: '50%',
-                  background: '#10F587',
-                  animation: 'pulse-dot 1.4s ease infinite',
-                  display: 'inline-block',
+                  width: 5, height: 5, borderRadius: '50%', background: '#10F587',
+                  animation: 'pulse-dot 1.4s ease infinite', display: 'inline-block',
                 }} />
-                UPDATING
+                LIVE
               </span>
             </div>
             <div style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              overflow: 'hidden',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 16, overflow: 'hidden',
             }}>
-              {liveActivity.map((item, i) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigate(`/venue/${item.venueId}`)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '11px 14px',
-                    borderBottom: i < liveActivity.length - 1 ? '1px solid var(--border)' : 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{
-                    width: 30, height: 30, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, rgba(255,107,43,0.25), rgba(139,92,246,0.25))',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
-                    color: 'var(--text-primary)', flexShrink: 0,
-                  }}>
-                    {item.user.split(' ').map(w => w[0]).join('')}
+              {activity.map((item, i) => {
+                const initials = (item.userName ?? '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => navigate(`/venue/${item.venueId}`)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                      borderBottom: i < activity.length - 1 ? '1px solid var(--border)' : 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{
+                      width: 30, height: 30, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, rgba(255,107,43,0.25), rgba(139,92,246,0.25))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
+                      color: 'var(--text-primary)', flexShrink: 0,
+                    }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{item.userName}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> {item.action} </span>
+                      <span style={{ fontSize: 13, color: 'var(--accent-cyan)', fontWeight: 600 }}>{item.venueName}</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{item.time}</span>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{item.user}</span>
-                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> {item.action} </span>
-                    <span style={{ fontSize: 13, color: 'var(--accent-cyan)', fontWeight: 600 }}>{item.venue}</span>
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{item.time}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { venues } from '../data/mockData'
 import { useApp } from '../context/AppContext'
 import { getVibeLabel } from '../components/VibeScore'
+import { useVenues } from '../hooks/useVenues'
+import { useCheckin } from '../hooks/useCheckin'
 
 const VENUE_EMOJI = {
   'Sports Bar': '🏈',
@@ -18,25 +19,34 @@ const VENUE_EMOJI = {
 
 export default function CheckIn() {
   const navigate = useNavigate()
-  const { checkedInVenueId, checkIn, checkOut } = useApp()
+  const { checkedInVenueId, checkIn, checkOut, user } = useApp()
+  const { venues } = useVenues()
+  const { checkIn: doCheckIn, checkOut: doCheckOut, voteVibe } = useCheckin()
   const [step, setStep] = useState('select')
   const [selectedVenue, setSelectedVenue] = useState(null)
   const [vibe, setVibe] = useState(null)
+  const [geoError, setGeoError] = useState('')
 
-  const currentVenue = venues.find(v => v.id === checkedInVenueId)
+  const currentVenue = venues.find(v => String(v.id) === String(checkedInVenueId))
 
   const handleVenueSelect = (venue) => {
     setSelectedVenue(venue)
     setStep('rating')
   }
 
-  const handleSubmit = () => {
-    checkIn(selectedVenue.id)
-    setStep('done')
-    setTimeout(() => navigate(`/venue/${selectedVenue.id}`), 1800)
+  const handleSubmit = async () => {
+    setGeoError('')
+    const { success, error } = await doCheckIn(selectedVenue, user?.id, () => {
+      checkIn(selectedVenue.id)
+      if (vibe) voteVibe(selectedVenue.id, user?.id, vibe)
+      setStep('done')
+      setTimeout(() => navigate(`/venue/${selectedVenue.id}`), 1800)
+    })
+    if (!success) setGeoError(error)
   }
 
-  const handleCheckOut = () => {
+  const handleCheckOut = async () => {
+    await doCheckOut(user?.id)
     checkOut()
   }
 
@@ -140,6 +150,11 @@ export default function CheckIn() {
             </div>
           ))}
 
+          {geoError && (
+            <p style={{ fontSize: 13, color: '#FF3B5C', marginBottom: 8, textAlign: 'center' }}>
+              📍 {geoError}
+            </p>
+          )}
           <button
             className="btn-primary"
             style={{ marginTop: 8, opacity: vibe ? 1 : 0.4 }}

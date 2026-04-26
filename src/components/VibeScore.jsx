@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 const MAX_SCORE = 175
 
@@ -17,6 +17,27 @@ export function getVibeBadgeClass(score) {
 }
 
 export default function VibeScore({ score, size = 'md' }) {
+  const [displayed, setDisplayed] = useState(score)
+  const prevRef  = useRef(score)
+  const frameRef = useRef(null)
+
+  useEffect(() => {
+    const from = prevRef.current
+    const to   = score
+    if (from === to) return
+    const start = performance.now()
+    const duration = 600
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - (1 - t) ** 3
+      setDisplayed(Math.round(from + (to - from) * eased))
+      if (t < 1) frameRef.current = requestAnimationFrame(tick)
+      else prevRef.current = to
+    }
+    frameRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frameRef.current)
+  }, [score])
+
   const pct = score / MAX_SCORE
   const { label, color } = getVibeLabel(score)
 
@@ -91,7 +112,7 @@ export default function VibeScore({ score, size = 'md' }) {
           lineHeight: 1,
           letterSpacing: '-1px',
         }}>
-          {score}
+          {displayed}
         </span>
         <span style={{
           fontFamily: 'var(--font-display)',
