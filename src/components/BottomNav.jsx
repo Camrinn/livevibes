@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 
 const navItems = [
   {
@@ -51,9 +52,20 @@ const navItems = [
   },
 ]
 
+const GUEST_BLOCKED = ['/checkin', '/notifications', '/profile']
+
 export default function BottomNav({ unreadCount = 0 }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { isAuthenticated, openSignUp } = useApp()
+
+  function handleNavClick(path) {
+    if (!isAuthenticated && GUEST_BLOCKED.includes(path)) {
+      openSignUp()
+      return
+    }
+    navigate(path)
+  }
 
   return (
     <nav style={{
@@ -82,7 +94,7 @@ export default function BottomNav({ unreadCount = 0 }) {
           return (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavClick(item.path)}
               style={{
                 width: 56,
                 height: 56,
@@ -114,7 +126,7 @@ export default function BottomNav({ unreadCount = 0 }) {
         return (
           <button
             key={item.path}
-            onClick={() => navigate(item.path)}
+            onClick={() => handleNavClick(item.path)}
             style={{
               flex: 1,
               display: 'flex',

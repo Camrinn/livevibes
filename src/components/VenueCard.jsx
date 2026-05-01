@@ -18,8 +18,15 @@ const VENUE_EMOJI = {
 
 export default function VenueCard({ venue, index = 0 }) {
   const navigate = useNavigate()
-  const { user } = useApp()
+  const { user, isAuthenticated, openSignUp } = useApp()
   const { isGoing, count, toggle } = useGoingTonight(venue.id, user?.id)
+
+  function handleCardClick() {
+    if (!isAuthenticated) { openSignUp(); return }
+    navigate(`/venue/${venue.id}`)
+  }
+
+  const guestBlur = { filter: 'blur(7px)', userSelect: 'none', pointerEvents: 'none' }
 
   return (
     <div
@@ -34,7 +41,7 @@ export default function VenueCard({ venue, index = 0 }) {
         position: 'relative',
         overflow: 'hidden',
       }}
-      onClick={() => navigate(`/venue/${venue.id}`)}
+      onClick={handleCardClick}
       onTouchStart={e => e.currentTarget.style.transform = 'scale(0.99)'}
       onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
     >
@@ -94,11 +101,11 @@ export default function VenueCard({ venue, index = 0 }) {
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>·</span>
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{venue.distance}</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>·</span>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{venue.checkedIn} here</span>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)', ...(!isAuthenticated ? guestBlur : {}) }}>{venue.checkedIn} here</span>
             {count > 0 && (
               <>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>·</span>
-                <span style={{ fontSize: 12, color: '#8B5CF6' }}>{count} going</span>
+                <span style={{ fontSize: 12, color: '#8B5CF6', ...(!isAuthenticated ? guestBlur : {}) }}>{count} going</span>
               </>
             )}
           </div>
@@ -115,7 +122,9 @@ export default function VenueCard({ venue, index = 0 }) {
           </div>
         </div>
 
-        <VibeScore score={venue.vibeScore} size="sm" />
+        <div style={!isAuthenticated ? guestBlur : {}}>
+          <VibeScore score={venue.vibeScore} size="sm" />
+        </div>
       </div>
 
       {/* Bottom row: deal + Going Tonight button */}
@@ -132,21 +141,38 @@ export default function VenueCard({ venue, index = 0 }) {
         )}
         {!venue.deal?.active && <div style={{ flex: 1 }} />}
 
-        <button
-          onClick={e => { e.stopPropagation(); toggle() }}
-          style={{
-            flexShrink: 0,
-            padding: '7px 12px', borderRadius: 10,
-            border: isGoing ? '1px solid rgba(139,92,246,0.5)' : '1px solid var(--border)',
-            background: isGoing ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.04)',
-            color: isGoing ? '#8B5CF6' : 'var(--text-muted)',
-            fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
-            cursor: 'pointer', transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {isGoing ? '✓ Going' : '🗓 Going?'}
-        </button>
+        {isAuthenticated ? (
+          <button
+            onClick={e => { e.stopPropagation(); toggle() }}
+            style={{
+              flexShrink: 0,
+              padding: '7px 12px', borderRadius: 10,
+              border: isGoing ? '1px solid rgba(139,92,246,0.5)' : '1px solid var(--border)',
+              background: isGoing ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.04)',
+              color: isGoing ? '#8B5CF6' : 'var(--text-muted)',
+              fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', transition: 'all 0.2s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isGoing ? '✓ Going' : '🗓 Going?'}
+          </button>
+        ) : (
+          <button
+            onClick={e => { e.stopPropagation(); openSignUp() }}
+            style={{
+              flexShrink: 0,
+              padding: '7px 12px', borderRadius: 10,
+              border: '1px solid rgba(255,107,43,0.35)',
+              background: 'rgba(255,107,43,0.08)',
+              color: '#FF6B2B',
+              fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            🔒 Join
+          </button>
+        )}
       </div>
     </div>
   )

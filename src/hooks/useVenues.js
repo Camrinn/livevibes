@@ -23,6 +23,7 @@ export function useVenues() {
           deals(text, ends_at, active),
           checkin_count:checkins(count)
         `)
+        .or('status.eq.active,status.is.null')
         .order('name')
 
       if (error || !venueRows) {

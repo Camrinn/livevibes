@@ -29,19 +29,25 @@ export default function VenueDetail() {
   const navigate = useNavigate()
   const { checkedInVenueId, checkIn, checkOut, user } = useApp()
   const { venue, posts, setPosts, whoIsHere, vibeScore, loading } = useVenueDetail(id)
-  const { checkIn: doCheckIn, checkOut: doCheckOut, voteVibe, submitPost } = useCheckin()
+  const { checkIn: doCheckIn, checkOut: doCheckOut, voteVibe, submitPost, flagPost } = useCheckin()
   const { isGoing, count: goingCount, toggle: toggleGoing } = useGoingTonight(id, user?.id)
 
-  const [tab, setTab]                     = useState('Vibe')
-  const [userRating, setUserRating]       = useState(null)
+  const [tab, setTab]                       = useState('Vibe')
+  const [userRating, setUserRating]         = useState(null)
   const [ratingSubmitted, setRatingSubmitted] = useState(false)
-  const [postText, setPostText]           = useState('')
-  const [photoFile, setPhotoFile]         = useState(null)
-  const [photoPreview, setPhotoPreview]   = useState(null)
-  const [likedPosts, setLikedPosts]       = useState({})
-  const [geoError, setGeoError]           = useState('')
-  const [connectModal, setConnectModal]   = useState(null) // person object
-  const [connectSent, setConnectSent]     = useState({})
+  const [postText, setPostText]             = useState('')
+  const [mediaFile, setMediaFile]           = useState(null)
+  const [mediaPreview, setMediaPreview]     = useState(null)
+  const [mediaType, setMediaType]           = useState(null) // 'photo' | 'video'
+  const [posting, setPosting]               = useState(false)
+  const [postError, setPostError]           = useState('')
+  const [likedPosts, setLikedPosts]         = useState({})
+  const [flagModal, setFlagModal]           = useState(null) // post object
+  const [flaggedPosts, setFlaggedPosts]     = useState({})   // { [postId]: true }
+  const [flagging, setFlagging]             = useState(false)
+  const [geoError, setGeoError]             = useState('')
+  const [connectModal, setConnectModal]     = useState(null)
+  const [connectSent, setConnectSent]       = useState({})
   const [connectLoading, setConnectLoading] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -72,34 +78,39 @@ export default function VenueDetail() {
     await voteVibe(venue.id, user?.id, rating)
   }
 
-  const handlePhotoSelect = (e) => {
+  const handleMediaSelect = (e) => {
     const file = e.target.files[0]
     if (!file) return
-    setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+    const isVid = file.type.startsWith('video/')
+    setMediaFile(file)
+    setMediaType(isVid ? 'video' : 'photo')
+    setMediaPreview(URL.createObjectURL(file))
   }
 
   const handlePost = async () => {
-    if (!postText.trim() && !photoFile) return
+    if (!postText.trim() && !mediaFile) return
+    if (posting) return
+    setPosting(true)
+    setPostError('')
     const text = postText
-    const file = photoFile
+    const file = mediaFile
     setPostText('')
-    setPhotoFile(null)
-    setPhotoPreview(null)
+    setMediaFile(null)
+    setMediaPreview(null)
+    setMediaType(null)
+    const { success, error } = await submitPost(venue.id, user?.id, text, file)
+    if (!success) setPostError(error || 'Failed to post. Try again.')
+    setPosting(false)
+    // Realtime subscription in useVenueDetail handles adding the post to the feed
+  }
 
-    const { error } = await submitPost(venue.id, user?.id, text, file)
-    if (error) {
-      setPosts(prev => [{
-        id: Date.now(),
-        user: user?.name ?? 'You',
-        avatar: user?.avatar ?? 'ME',
-        time: 'Just now',
-        content: text,
-        likes: 0,
-        hasMedia: Boolean(file),
-        mediaUrl: photoPreview,
-      }, ...prev])
-    }
+  const handleFlag = async (reason) => {
+    if (!flagModal || flagging) return
+    setFlagging(true)
+    await flagPost(flagModal.id, user?.id, reason)
+    setFlaggedPosts(prev => ({ ...prev, [flagModal.id]: true }))
+    setFlagging(false)
+    setFlagModal(null)
   }
 
   const handleLike = (postId) => {
@@ -225,7 +236,7 @@ export default function VenueDetail() {
         {/* Stats row */}
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           {[
-            { label: 'Here Now', value: venue.checkedIn, icon: '📍' },
+            { label: 'Here Now', value: whoIsHere.length || venue.checkedIn || 0, icon: '📍' },
             { label: 'Going', value: goingCount, icon: '🗓' },
             { label: 'Vibe', value: `${displayScore}/175`, icon: '⚡' },
           ].map(s => (
@@ -435,16 +446,24 @@ export default function VenueDetail() {
                   📍 You're here — share the vibe!
                 </p>
 
-                {/* Photo preview */}
-                {photoPreview && (
+                {/* Media preview */}
+                {mediaPreview && (
                   <div style={{ position: 'relative', marginBottom: 10 }}>
-                    <img
-                      src={photoPreview}
-                      alt="preview"
-                      style={{ width: '100%', borderRadius: 10, maxHeight: 200, objectFit: 'cover' }}
-                    />
+                    {mediaType === 'video' ? (
+                      <video
+                        src={mediaPreview}
+                        controls
+                        style={{ width: '100%', borderRadius: 10, maxHeight: 200 }}
+                      />
+                    ) : (
+                      <img
+                        src={mediaPreview}
+                        alt="preview"
+                        style={{ width: '100%', borderRadius: 10, maxHeight: 200, objectFit: 'cover' }}
+                      />
+                    )}
                     <button
-                      onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
+                      onClick={() => { setMediaFile(null); setMediaPreview(null); setMediaType(null) }}
                       style={{
                         position: 'absolute', top: 6, right: 6,
                         width: 24, height: 24, borderRadius: '50%',
@@ -472,35 +491,37 @@ export default function VenueDetail() {
                   }}
                   rows={3}
                 />
+                {postError && (
+                  <p style={{ fontSize: 12, color: '#FF3B5C', marginBottom: 8 }}>{postError}</p>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
-                    capture="environment"
+                    accept="image/*,video/mp4"
                     style={{ display: 'none' }}
-                    onChange={handlePhotoSelect}
+                    onChange={handleMediaSelect}
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     style={{
                       flex: 0, padding: '10px 14px', borderRadius: 10,
-                      border: photoFile ? '1px solid rgba(0,212,255,0.4)' : '1px solid var(--border)',
-                      background: photoFile ? 'rgba(0,212,255,0.08)' : 'var(--bg-card)',
-                      color: photoFile ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                      border: mediaFile ? '1px solid rgba(0,212,255,0.4)' : '1px solid var(--border)',
+                      background: mediaFile ? 'rgba(0,212,255,0.08)' : 'var(--bg-card)',
+                      color: mediaFile ? 'var(--accent-cyan)' : 'var(--text-muted)',
                       fontSize: 18, cursor: 'pointer',
                     }}
-                    title="Add photo"
+                    title="Add photo or video"
                   >
-                    📸
+                    {mediaType === 'video' ? '🎥' : '📸'}
                   </button>
                   <button
                     className="btn-primary"
                     style={{ flex: 1, padding: '10px' }}
                     onClick={handlePost}
-                    disabled={!postText.trim() && !photoFile}
+                    disabled={posting || (!postText.trim() && !mediaFile)}
                   >
-                    Post Update
+                    {posting ? 'Posting...' : 'Post Update'}
                   </button>
                 </div>
               </div>
@@ -537,11 +558,19 @@ export default function VenueDetail() {
               posts.map(post => (
                 <div key={post.id} className="glass-card" style={{ padding: 14, marginBottom: 10 }}>
                   {post.hasMedia && post.mediaUrl && (
-                    <img
-                      src={post.mediaUrl}
-                      alt="post"
-                      style={{ width: '100%', borderRadius: 10, marginBottom: 10, maxHeight: 220, objectFit: 'cover' }}
-                    />
+                    post.mediaType === 'video' ? (
+                      <video
+                        src={post.mediaUrl}
+                        controls
+                        style={{ width: '100%', borderRadius: 10, marginBottom: 10, maxHeight: 260 }}
+                      />
+                    ) : (
+                      <img
+                        src={post.mediaUrl}
+                        alt="post"
+                        style={{ width: '100%', borderRadius: 10, marginBottom: 10, maxHeight: 260, objectFit: 'cover' }}
+                      />
+                    )
                   )}
                   {post.hasMedia && !post.mediaUrl && (
                     <div style={{
@@ -581,9 +610,24 @@ export default function VenueDetail() {
                         >
                           🔥 {post.likes}
                         </button>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>
-                          📍 Location verified
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4, flex: 1 }}>
+                          📍 Verified
                         </span>
+                        {post.user !== (user?.name ?? 'You') && (
+                          <button
+                            onClick={() => !flaggedPosts[post.id] && setFlagModal(post)}
+                            title={flaggedPosts[post.id] ? 'Already reported' : 'Report post'}
+                            style={{
+                              background: 'none', border: 'none', cursor: flaggedPosts[post.id] ? 'default' : 'pointer',
+                              color: flaggedPosts[post.id] ? '#FF3B5C' : 'var(--text-muted)',
+                              fontSize: 12, padding: '4px 6px', borderRadius: 6,
+                              opacity: flaggedPosts[post.id] ? 0.5 : 0.6,
+                              transition: 'opacity 0.2s',
+                            }}
+                          >
+                            🚩
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -749,6 +793,76 @@ export default function VenueDetail() {
           </div>
         )}
       </div>
+
+      {/* Flag Modal */}
+      {flagModal && (
+        <div
+          onClick={() => setFlagModal(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'flex-end', padding: '0 0 40px',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 480, margin: '0 auto',
+              background: 'var(--bg-card)', borderRadius: '24px 24px 0 0',
+              border: '1px solid var(--border)', padding: '24px 24px 32px',
+            }}
+          >
+            <div style={{
+              width: 36, height: 4, borderRadius: 999,
+              background: 'var(--border)', margin: '0 auto 20px',
+            }} />
+            <h3 style={{
+              fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800,
+              color: 'var(--text-primary)', marginBottom: 6, textAlign: 'center',
+            }}>
+              Report Post
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 20 }}>
+              Why are you reporting this?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { value: 'inappropriate', label: '🚫 Inappropriate content' },
+                { value: 'nudity',        label: '🔞 Nudity or explicit material' },
+                { value: 'spam',          label: '📢 Spam or fake' },
+                { value: 'harassment',    label: '😤 Harassment or bullying' },
+                { value: 'violence',      label: '⚠️ Violence or dangerous' },
+                { value: 'other',         label: '❓ Other' },
+              ].map(r => (
+                <button
+                  key={r.value}
+                  onClick={() => handleFlag(r.value)}
+                  disabled={flagging}
+                  style={{
+                    width: '100%', padding: '13px 16px', borderRadius: 12,
+                    border: '1px solid var(--border)', background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)', fontFamily: 'var(--font-body)',
+                    fontSize: 14, textAlign: 'left', cursor: flagging ? 'not-allowed' : 'pointer',
+                    opacity: flagging ? 0.5 : 1, transition: 'all 0.15s',
+                  }}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setFlagModal(null)}
+              style={{
+                width: '100%', padding: '12px', marginTop: 12,
+                background: 'none', border: 'none',
+                color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Connect Modal */}
       {connectModal && (

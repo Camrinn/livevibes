@@ -119,6 +119,7 @@ export default function Profile() {
   const [saving, setSaving]               = useState(false)
   const [recentCheckins, setRecentCheckins] = useState([])
   const [visible, setVisible]             = useState(dbUser?.visible ?? true)
+  const [submissions, setSubmissions]     = useState([])
 
   useEffect(() => {
     if (!isConfigured || !dbUser?.id) return
@@ -129,6 +130,13 @@ export default function Profile() {
       .order('created_at', { ascending: false })
       .limit(5)
       .then(({ data }) => setRecentCheckins(data ?? []))
+
+    supabase
+      .from('venues')
+      .select('id, name, type, status, rejection_reason, submitted_at')
+      .eq('submitted_by', dbUser.id)
+      .order('submitted_at', { ascending: false })
+      .then(({ data }) => setSubmissions(data ?? []))
   }, [dbUser?.id])
 
   const currentVenue = allVenues.find(v => String(v.id) === String(checkedInVenueId))
@@ -435,6 +443,52 @@ export default function Profile() {
           )
         })}
 
+        {/* My Submissions */}
+        {submissions.length > 0 && (
+          <>
+            <div className="section-header" style={{ marginTop: 24 }}>
+              <span className="section-title">My Submissions</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{submissions.length}</span>
+            </div>
+            {submissions.map(v => {
+              const statusConfig = {
+                active:   { label: 'Live 🎉',         color: '#10F587', bg: 'rgba(16,245,135,0.1)'  },
+                pending:  { label: 'Pending Review',  color: '#FF6B2B', bg: 'rgba(255,107,43,0.1)' },
+                rejected: { label: 'Not Approved',    color: '#FF3B5C', bg: 'rgba(255,59,92,0.08)' },
+                archived: { label: 'Archived',        color: '#44445A', bg: 'rgba(68,68,90,0.15)'  },
+              }
+              const s = statusConfig[v.status] ?? statusConfig.pending
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => v.status === 'active' && navigate(`/venue/${v.id}`)}
+                  style={{
+                    display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 14, marginBottom: 8,
+                    background: 'var(--bg-card)', border: '1px solid var(--border)',
+                    alignItems: 'center', cursor: v.status === 'active' ? 'pointer' : 'default',
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>{VENUE_EMOJI[v.type] ?? '🍻'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{v.name}</div>
+                    {v.status === 'rejected' && v.rejection_reason && (
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Reason: {v.rejection_reason}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+                    background: s.bg, color: s.color, whiteSpace: 'nowrap',
+                  }}>
+                    {s.label}
+                  </span>
+                </div>
+              )
+            })}
+          </>
+        )}
+
         {/* Settings */}
         <div className="section-header" style={{ marginTop: 24 }}>
           <span className="section-title">Settings</span>
@@ -488,6 +542,27 @@ export default function Profile() {
           <span className="section-title">Invite Friends</span>
         </div>
         <InviteCard user={user} />
+
+        {/* Admin Panel — only visible to admins */}
+        {user?.isAdmin && (
+          <div
+            onClick={() => navigate('/admin')}
+            style={{
+              display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 14, marginBottom: 8,
+              background: 'rgba(255,59,92,0.06)', border: '1px solid rgba(255,59,92,0.2)',
+              alignItems: 'center', cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 20 }}>⚡</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#FF3B5C' }}>Admin Panel</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Review pending venues and manage the app</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </div>
+        )}
 
         {/* Log Out */}
         <button

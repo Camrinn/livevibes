@@ -41,12 +41,25 @@ export default function MapPage() {
               📍 Philadelphia · {venues.length} active venues
             </p>
           </div>
-          <div style={{
-            background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-            borderRadius: 10, padding: '6px 12px',
-            fontSize: 12, color: 'var(--accent-cyan)', fontWeight: 600,
-          }}>
-            Live ●
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{
+              background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
+              borderRadius: 10, padding: '6px 12px',
+              fontSize: 12, color: 'var(--accent-cyan)', fontWeight: 600,
+            }}>
+              Live ●
+            </div>
+            <button
+              onClick={() => navigate('/add-venue')}
+              style={{
+                background: 'rgba(255,107,43,0.1)', border: '1px solid rgba(255,107,43,0.3)',
+                borderRadius: 10, padding: '6px 12px',
+                fontSize: 12, color: '#FF6B2B', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font-display)',
+              }}
+            >
+              + Venue
+            </button>
           </div>
         </div>
       </div>

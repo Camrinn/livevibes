@@ -30,7 +30,7 @@ export default function Home() {
   const navigate = useNavigate()
 
   const { venues } = useVenues()
-  const { user, checkedInVenueId, checkedInAt, checkOut } = useApp()
+  const { user, checkedInVenueId, checkedInAt, checkOut, isAuthenticated, openSignUp } = useApp()
   const { checkOut: doCheckOut } = useCheckin()
   const { activity, friendsOut, peopleOut } = useLiveActivity(user?.id)
 
@@ -270,10 +270,43 @@ export default function Home() {
           </div>
         )}
 
+        {/* Guest banner */}
+        {!isAuthenticated && (
+          <div
+            onClick={openSignUp}
+            style={{
+              marginTop: 12, marginBottom: 4,
+              padding: '14px 16px',
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, rgba(255,107,43,0.12), rgba(255,59,92,0.08))',
+              border: '1px solid rgba(255,107,43,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                🔒 See live vibes, who&apos;s here &amp; more
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                Free to join — takes 30 seconds
+              </div>
+            </div>
+            <div style={{
+              padding: '7px 14px', borderRadius: 10,
+              background: 'linear-gradient(135deg, #FF6B2B, #FF3B5C)',
+              color: 'white', fontSize: 12, fontWeight: 700,
+              fontFamily: 'var(--font-display)', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              Join Free →
+            </div>
+          </div>
+        )}
+
         {/* Hot Tonight hero card */}
         {filter === 'All' && !search && hotVenue && (
           <div
-            onClick={() => navigate(`/venue/${hotVenue.id}`)}
+            onClick={() => isAuthenticated ? navigate(`/venue/${hotVenue.id}`) : openSignUp()}
             className="animate-in"
             style={{
               borderRadius: 24,
@@ -338,11 +371,14 @@ export default function Home() {
                   color: hotVenue.color,
                   lineHeight: 1,
                   letterSpacing: '-2px',
-                  filter: `drop-shadow(0 0 16px ${hotVenue.color}66)`,
+                  filter: !isAuthenticated
+                    ? 'blur(8px)'
+                    : `drop-shadow(0 0 16px ${hotVenue.color}66)`,
+                  userSelect: !isAuthenticated ? 'none' : 'auto',
                 }}>
                   {hotVenue.vibeScore}
                 </span>
-                <span style={{ fontSize: 14, color: hotVenue.color, fontWeight: 600, opacity: 0.7 }}>
+                <span style={{ fontSize: 14, color: hotVenue.color, fontWeight: 600, opacity: 0.7, filter: !isAuthenticated ? 'blur(6px)' : 'none' }}>
                   / 175
                 </span>
               </div>
@@ -371,6 +407,8 @@ export default function Home() {
                 fontSize: 18, fontWeight: 800,
                 fontFamily: 'var(--font-display)',
                 color: s.color,
+                filter: !isAuthenticated ? 'blur(5px)' : 'none',
+                userSelect: !isAuthenticated ? 'none' : 'auto',
               }}>
                 {s.count}
               </div>

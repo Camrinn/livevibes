@@ -10,11 +10,20 @@ export function AppProvider({ children }) {
   const [authLoading, setAuthLoading]           = useState(true)
   const [checkedInVenueId, setCheckedInVenueId] = useState(null)
   const [checkedInAt, setCheckedInAt]           = useState(null)
-  const [onboarded, setOnboarded]               = useState(false)
+  const [onboarded, _setOnboarded]              = useState(() => localStorage.getItem('lv_onboarded') === 'true')
   const [vibePoints, setVibePoints]             = useState(mockUser.vibePoints)
   const [checkInCount, setCheckInCount]         = useState(mockUser.checkIns)
   const [profileComplete, setProfileComplete]   = useState(false)
   const [unreadCount, setUnreadCount]           = useState(0)
+  const [signUpVisible, setSignUpVisible]       = useState(false)
+
+  const setOnboarded = useCallback((val) => {
+    if (val) localStorage.setItem('lv_onboarded', 'true')
+    _setOnboarded(val)
+  }, [])
+
+  const openSignUp  = useCallback(() => setSignUpVisible(true), [])
+  const closeSignUp = useCallback(() => setSignUpVisible(false), [])
 
   const loadDbUser = useCallback(async (userId) => {
     const { data } = await supabase.from('users').select('*').eq('id', userId).single()
@@ -100,10 +109,11 @@ export function AppProvider({ children }) {
         age: dbUser.age ?? null,
         instagram: dbUser.instagram_handle ?? null,
         inviteCode: dbUser.invite_code ?? dbUser.id?.slice(0, 8) ?? null,
+        isAdmin: dbUser.is_admin ?? false,
         vibePoints,
         checkIns: checkInCount,
       }
-    : { ...mockUser, vibePoints, checkIns: checkInCount, mode: 'vibing', age: null, instagram: null }
+    : { ...mockUser, vibePoints, checkIns: checkInCount, mode: 'vibing', age: null, instagram: null, isAdmin: false }
 
   const isAuthenticated = isConfigured ? Boolean(session) : true
 
@@ -127,6 +137,9 @@ export function AppProvider({ children }) {
       checkInCount,
       unreadCount,
       setUnreadCount,
+      signUpVisible,
+      openSignUp,
+      closeSignUp,
     }}>
       {children}
     </AppContext.Provider>

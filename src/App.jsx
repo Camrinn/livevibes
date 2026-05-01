@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import BottomNav from './components/BottomNav'
+import SignUpModal from './components/SignUpModal'
 import Home from './pages/Home'
 import MapPage from './pages/MapPage'
 import CheckIn from './pages/CheckIn'
@@ -11,6 +12,8 @@ import VenueDetail from './pages/VenueDetail'
 import Onboarding from './pages/Onboarding'
 import ProfileSetup from './pages/ProfileSetup'
 import Auth from './pages/Auth'
+import AddVenue from './pages/AddVenue'
+import Admin from './pages/Admin'
 import { isConfigured } from './lib/supabase'
 
 // Captures /join/:code and redirects to auth, preserving the ref param
@@ -22,7 +25,7 @@ function JoinRedirect() {
 
 function AppInner() {
   const location = useLocation()
-  const { onboarded, isAuthenticated, authLoading, profileComplete, unreadCount } = useApp()
+  const { onboarded, isAuthenticated, authLoading, profileComplete, unreadCount, signUpVisible, closeSignUp } = useApp()
 
   const isOnboarding   = location.pathname === '/onboarding'
   const isAuth         = location.pathname === '/auth'
@@ -54,19 +57,17 @@ function AppInner() {
     )
   }
 
-  if (isConfigured && !isAuthenticated && !isAuth) {
-    return <div className="app"><Auth /></div>
-  }
-
   if (!onboarded && !isOnboarding && !isAuth) {
     return <Navigate to="/onboarding" replace />
   }
 
-  if (isConfigured && isAuthenticated && !profileComplete && !isProfileSetup && !isOnboarding && !isAuth) {
+  if (isConfigured && isAuthenticated && !profileComplete && !isProfileSetup && !isOnboarding && !isAuth && !signUpVisible) {
     return <Navigate to="/profile-setup" replace />
   }
 
-  const hideNav = isOnboarding || isAuth || isProfileSetup
+  const isAddVenue = location.pathname === '/add-venue'
+  const isAdmin    = location.pathname === '/admin'
+  const hideNav = isOnboarding || isAuth || isProfileSetup || isAddVenue || isAdmin
 
   return (
     <div className="app">
@@ -81,8 +82,11 @@ function AppInner() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profile"       element={<Profile />} />
         <Route path="/venue/:id"     element={<VenueDetail />} />
+        <Route path="/add-venue"     element={<AddVenue />} />
+        <Route path="/admin"         element={<Admin />} />
       </Routes>
       {!hideNav && <BottomNav unreadCount={unreadCount} />}
+      {isConfigured && signUpVisible && !isAuthenticated && <SignUpModal onClose={closeSignUp} />}
     </div>
   )
 }

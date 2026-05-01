@@ -44,6 +44,7 @@ export function useVenueDetail(venueId) {
           likes: p.likes ?? 0,
           hasMedia: Boolean(p.media_url),
           mediaUrl: p.media_url,
+          mediaType: p.media_type ?? 'photo',
         })))
       } else {
         const { venues: mockVenues } = await import('../data/mockData.js')
