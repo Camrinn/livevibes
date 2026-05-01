@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@googlemaps/js-api-loader": "^2.0.2",
     "@supabase/supabase-js": "^2.104.1",
     "lucide-react": "^0.344.0",
     "mapbox-gl": "^3.22.0",

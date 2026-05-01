@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 import { venues as mockVenues } from '../data/mockData'
 
-// Real-time venue detail: vibe score, posts, who's here
-export function useVenueDetail(venueId) {
-  const [venue, setVenue]       = useState(null)
-  const [posts, setPosts]       = useState([])
+export function useVenueDetail(venueId, currentUserId) {
+  const [venue, setVenue]         = useState(null)
+  const [posts, setPosts]         = useState([])
   const [whoIsHere, setWhoIsHere] = useState([])
   const [vibeScore, setVibeScore] = useState(0)
-  const [loading, setLoading]   = useState(true)
+  const [loading, setLoading]     = useState(true)
 
   useEffect(() => {
     if (!venueId) return
@@ -16,8 +15,8 @@ export function useVenueDetail(venueId) {
     if (!isConfigured) {
       const mock = mockVenues.find(v => String(v.id) === String(venueId))
       setVenue(mock)
-      setPosts(mock?.posts ?? [])
-      setWhoIsHere(mock?.whoIsHere ?? [])
+      setPosts([])
+      setWhoIsHere([])
       setVibeScore(mock?.vibeScore ?? 0)
       setLoading(false)
       return
@@ -26,14 +25,14 @@ export function useVenueDetail(venueId) {
     async function load() {
       const [venueRes, postsRes, checkinsRes, scoreRes] = await Promise.all([
         supabase.from('venues').select('*, deals(*)').eq('id', venueId).single(),
-        supabase.from('posts').select('*, users(name, avatar_url)').eq('venue_id', venueId).order('created_at', { ascending: false }).limit(30),
+        supabase.from('posts').select('*, users!posts_user_id_fkey(name, avatar_url)').eq('venue_id', venueId).order('created_at', { ascending: false }).limit(30),
         supabase.from('checkins').select('*, users(id, name, bio, avatar_url, visible)').eq('venue_id', venueId).eq('is_active', true),
         supabase.rpc('calculate_vibe_score', { p_venue_id: venueId }),
       ])
 
       if (venueRes.data) setVenue(venueRes.data)
 
-      // Posts — fall back to mock posts until real ones exist
+      // Real posts only — no mock fallback
       if (postsRes.data && postsRes.data.length > 0) {
         setPosts(postsRes.data.map(p => ({
           id: p.id,
@@ -47,15 +46,13 @@ export function useVenueDetail(venueId) {
           mediaType: p.media_type ?? 'photo',
         })))
       } else {
-        const { venues: mockVenues } = await import('../data/mockData.js')
-        const mockVenue = mockVenues.find(v => String(v.id) === String(venueId) || v.name === venueRes.data?.name)
-        setPosts(mockVenue?.posts ?? [])
+        setPosts([])
       }
 
-      // Who's Here — fall back to mock data until real users check in
+      // Who's Here — real check-ins only, exclude current user
       const realPeople = checkinsRes.data
         ? checkinsRes.data
-            .filter(c => c.users?.visible)
+            .filter(c => c.users?.visible && c.users?.id !== currentUserId)
             .map(c => ({
               id: c.users.id,
               name: c.users.name,
@@ -65,16 +62,9 @@ export function useVenueDetail(venueId) {
             }))
         : []
 
-      if (realPeople.length > 0) {
-        setWhoIsHere(realPeople)
-      } else {
-        // Use mock who's here until real check-ins exist
-        const { venues: mockVenues } = await import('../data/mockData.js')
-        const mockVenue = mockVenues.find(v => String(v.id) === String(venueId) || v.name === venueRes.data?.name)
-        setWhoIsHere(mockVenue?.whoIsHere ?? [])
-      }
+      setWhoIsHere(realPeople)
 
-      // Vibe score — use default_vibe_score from venue as fallback
+      // Vibe score
       const liveScore = scoreRes.data
       const defaultScore = venueRes.data?.default_vibe_score ?? 0
       setVibeScore(liveScore || defaultScore)
@@ -83,19 +73,16 @@ export function useVenueDetail(venueId) {
 
     load()
 
-    // Real-time: new posts
     const postSub = supabase
       .channel(`posts:${venueId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts', filter: `venue_id=eq.${venueId}` }, load)
       .subscribe()
 
-    // Real-time: check-in/check-out changes
     const checkinSub = supabase
       .channel(`checkins:${venueId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins', filter: `venue_id=eq.${venueId}` }, load)
       .subscribe()
 
-    // Real-time: new vibe votes
     const voteSub = supabase
       .channel(`votes:${venueId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vibe_votes', filter: `venue_id=eq.${venueId}` }, load)
@@ -106,7 +93,7 @@ export function useVenueDetail(venueId) {
       supabase.removeChannel(checkinSub)
       supabase.removeChannel(voteSub)
     }
-  }, [venueId])
+  }, [venueId, currentUserId])
 
   return { venue, posts, setPosts, whoIsHere, vibeScore, loading }
 }

@@ -27,7 +27,21 @@ export default function Home() {
   const [filter, setFilter]           = useState('All')
   const [search, setSearch]           = useState('')
   const [staleDismissed, setStaleDismissed] = useState(false)
+  const [logoTaps, setLogoTaps]       = useState(0)
+  const [menuOpen, setMenuOpen]       = useState(false)
   const navigate = useNavigate()
+
+  function handleLogoTap() {
+    const next = logoTaps + 1
+    setLogoTaps(next)
+    if (next >= 5) {
+      setLogoTaps(0)
+      navigate('/admin')
+    } else {
+      clearTimeout(handleLogoTap._timer)
+      handleLogoTap._timer = setTimeout(() => setLogoTaps(0), 2000)
+    }
+  }
 
   const { venues } = useVenues()
   const { user, checkedInVenueId, checkedInAt, checkOut, isAuthenticated, openSignUp } = useApp()
@@ -89,15 +103,21 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 26,
-                fontWeight: 800,
-                background: 'linear-gradient(90deg, #FF6B2B, #FF3B5C)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                letterSpacing: '-0.5px',
-              }}>
+              <span
+                onClick={handleLogoTap}
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 26,
+                  fontWeight: 800,
+                  background: 'linear-gradient(90deg, #FF6B2B, #FF3B5C)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.5px',
+                  cursor: 'default',
+                  WebkitUserSelect: 'none',
+                  userSelect: 'none',
+                }}
+              >
                 Live Vibes
               </span>
               <span style={{
@@ -124,18 +144,102 @@ export default function Home() {
               📍 Philadelphia · {peopleOut.toLocaleString()} people out tonight
             </p>
           </div>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(255,107,43,0.2), rgba(139,92,246,0.2))',
-            border: '1px solid var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12"/>
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
+          <div style={{ position: 'relative' }}>
+            <div
+              onClick={() => setMenuOpen(o => !o)}
+              style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: menuOpen
+                  ? 'linear-gradient(135deg, rgba(255,107,43,0.3), rgba(139,92,246,0.3))'
+                  : 'linear-gradient(135deg, rgba(255,107,43,0.2), rgba(139,92,246,0.2))',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2">
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </div>
+
+            {menuOpen && (
+              <>
+                {/* Backdrop to close */}
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 49 }}
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div style={{
+                  position: 'absolute', top: 48, right: 0,
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 16,
+                  padding: '8px',
+                  minWidth: 180,
+                  zIndex: 50,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  animation: 'lv-fade-in 0.15s ease',
+                }}>
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => { setMenuOpen(false); navigate('/add-venue') }}
+                      style={{
+                        width: '100%', padding: '11px 14px', borderRadius: 10,
+                        background: 'none', border: 'none',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        color: 'var(--text-primary)', fontSize: 14, fontWeight: 600,
+                        cursor: 'pointer', textAlign: 'left',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ fontSize: 18 }}>➕</span> Add Venue
+                    </button>
+                  )}
+                  {user?.isAdmin && (
+                    <button
+                      onClick={() => { setMenuOpen(false); navigate('/admin') }}
+                      style={{
+                        width: '100%', padding: '11px 14px', borderRadius: 10,
+                        background: 'none', border: 'none',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        color: 'var(--text-primary)', fontSize: 14, fontWeight: 600,
+                        cursor: 'pointer', textAlign: 'left',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ fontSize: 18 }}>⚙️</span> Admin Panel
+                    </button>
+                  )}
+                  {(isAuthenticated || user?.isAdmin) && (
+                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                  )}
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate('/profile') }}
+                    style={{
+                      width: '100%', padding: '11px 14px', borderRadius: 10,
+                      background: 'none', border: 'none',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      color: 'var(--text-primary)', fontSize: 14, fontWeight: 600,
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <span style={{ fontSize: 18 }}>👤</span> Profile
+                  </button>
+                </div>
+                <style>{`
+                  @keyframes lv-fade-in {
+                    from { opacity: 0; transform: translateY(-6px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                  }
+                `}</style>
+              </>
+            )}
           </div>
         </div>
 

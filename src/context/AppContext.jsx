@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 import { currentUser as mockUser } from '../data/mockData'
+import { identifyUser, logoutOneSignal } from '../lib/onesignal'
 
 const AppContext = createContext(null)
 
@@ -32,6 +33,7 @@ export function AppProvider({ children }) {
       setVibePoints(data.vibe_points ?? 0)
       setCheckInCount(data.check_in_count ?? 0)
       setProfileComplete(data.profile_complete ?? false)
+      identifyUser(userId)
     }
 
     const { data: checkin } = await supabase
@@ -92,6 +94,7 @@ export function AppProvider({ children }) {
 
   const signOut = async () => {
     if (isConfigured) await supabase.auth.signOut()
+    logoutOneSignal()
     setSession(null)
     setDbUser(null)
     setProfileComplete(false)

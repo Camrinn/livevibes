@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, isConfigured } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
+import { attachAutocomplete } from '../lib/places'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -43,7 +44,7 @@ export default function AddVenue() {
   const navigate = useNavigate()
   const { user, dbUser } = useApp()
 
-  const [canSubmit, setCanSubmit]   = useState(true) // optimistic; checked async
+  const [canSubmit, setCanSubmit]   = useState(true)
   const [step, setStep]             = useState(0)
   const [name, setName]             = useState('')
   const [type, setType]             = useState('')
@@ -57,12 +58,38 @@ export default function AddVenue() {
   const [done, setDone]             = useState(false)
   const [error, setError]           = useState('')
 
-  // Check submission eligibility in background
+  const nameInputRef    = useRef(null)
+  const addressInputRef = useRef(null)
+
+  // Attach Google Places autocomplete to the venue name field
   useEffect(() => {
-    if (!isConfigured || !dbUser?.id) return
+    if (step !== 0 || !nameInputRef.current) return
+    const cleanup = attachAutocomplete(nameInputRef.current, (place) => {
+      setName(place.name)
+      setAddress(place.address)
+      setGeoResult({ lat: place.lat, lng: place.lng, displayName: place.address })
+      setGeoError('')
+    })
+    return () => { cleanup?.then(ac => ac?.unbindAll?.()) }
+  }, [step])
+
+  // Attach Google Places autocomplete to the address field (Step 1)
+  useEffect(() => {
+    if (step !== 1 || !addressInputRef.current) return
+    const cleanup = attachAutocomplete(addressInputRef.current, (place) => {
+      setAddress(place.address)
+      setGeoResult({ lat: place.lat, lng: place.lng, displayName: place.address })
+      setGeoError('')
+    })
+    return () => { cleanup?.then(ac => ac?.unbindAll?.()) }
+  }, [step])
+
+  // Check submission eligibility in background (admins bypass the age/rate limit check)
+  useEffect(() => {
+    if (!isConfigured || !dbUser?.id || user?.isAdmin) return
     supabase.rpc('can_submit_venue', { p_user_id: dbUser.id })
       .then(({ data }) => { if (data === false) setCanSubmit(false) })
-  }, [dbUser?.id])
+  }, [dbUser?.id, user?.isAdmin])
 
   const steps = ['The basics', 'Location', 'Vibe tags']
   const progress = ((step + 1) / steps.length) * 100
@@ -96,13 +123,15 @@ export default function AddVenue() {
       return
     }
 
-    // Final server-side eligibility check
-    const { data: allowed } = await supabase.rpc('can_submit_venue', { p_user_id: dbUser?.id })
-    if (allowed === false) {
-      setError('You can\'t submit right now. Accounts must be 7+ days old and max 3 submissions per day.')
-      setSubmitting(false)
-      setCanSubmit(false)
-      return
+    // Final server-side eligibility check (admins bypass)
+    if (!user?.isAdmin) {
+      const { data: allowed } = await supabase.rpc('can_submit_venue', { p_user_id: dbUser?.id })
+      if (allowed === false) {
+        setError('You can\'t submit right now. Accounts must be 7+ days old and max 3 submissions per day.')
+        setSubmitting(false)
+        setCanSubmit(false)
+        return
+      }
     }
 
     const payload = {
@@ -245,6 +274,7 @@ export default function AddVenue() {
             </p>
             <input
               autoFocus
+              ref={nameInputRef}
               className="input-field"
               placeholder="Venue name"
               value={name}
@@ -302,6 +332,7 @@ export default function AddVenue() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <input
                 autoFocus
+                ref={addressInputRef}
                 className="input-field"
                 placeholder="123 Main St, Philadelphia, PA"
                 value={address}

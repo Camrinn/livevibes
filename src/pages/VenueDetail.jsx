@@ -28,7 +28,7 @@ export default function VenueDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { checkedInVenueId, checkIn, checkOut, user } = useApp()
-  const { venue, posts, setPosts, whoIsHere, vibeScore, loading } = useVenueDetail(id)
+  const { venue, posts, setPosts, whoIsHere, vibeScore, loading } = useVenueDetail(id, user?.id)
   const { checkIn: doCheckIn, checkOut: doCheckOut, voteVibe, submitPost, flagPost } = useCheckin()
   const { isGoing, count: goingCount, toggle: toggleGoing } = useGoingTonight(id, user?.id)
 
