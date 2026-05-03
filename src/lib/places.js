@@ -13,6 +13,30 @@ export function loadPlaces() {
   return placesPromise
 }
 
+export async function fetchPlaceDetails(placeId) {
+  if (!API_KEY || !placeId) return null
+  return loadPlaces().then(places => {
+    if (!places) return null
+    return new Promise(resolve => {
+      const dummy = document.createElement('div')
+      const service = new places.PlacesService(dummy)
+      service.getDetails(
+        { placeId, fields: ['formatted_phone_number', 'website', 'opening_hours', 'price_level', 'photos'] },
+        (result, status) => {
+          if (status !== places.PlacesServiceStatus.OK || !result) { resolve(null); return }
+          resolve({
+            phone: result.formatted_phone_number ?? null,
+            website: result.website ?? null,
+            hours: result.opening_hours?.weekday_text ?? null,
+            priceLevel: result.price_level ?? null,
+            photoRef: result.photos?.[0]?.getUrl({ maxWidth: 800 }) ?? null,
+          })
+        }
+      )
+    })
+  })
+}
+
 export function attachAutocomplete(inputEl, onSelect) {
   if (!API_KEY || !inputEl) return null
   return loadPlaces().then(places => {

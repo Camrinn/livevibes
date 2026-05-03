@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, isConfigured } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
-import { attachAutocomplete } from '../lib/places'
+import { attachAutocomplete, fetchPlaceDetails } from '../lib/places'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -54,6 +54,9 @@ export default function AddVenue() {
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError]     = useState('')
   const [tags, setTags]             = useState([])
+  const [placeDetails, setPlaceDetails] = useState(null)
+  const [phone, setPhone]               = useState('')
+  const [website, setWebsite]           = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]             = useState(false)
   const [error, setError]           = useState('')
@@ -69,6 +72,16 @@ export default function AddVenue() {
       setAddress(place.address)
       setGeoResult({ lat: place.lat, lng: place.lng, displayName: place.address })
       setGeoError('')
+      setPlaceDetails(null)
+      if (place.placeId) {
+        fetchPlaceDetails(place.placeId).then(details => {
+          if (details) {
+            setPlaceDetails(details)
+            if (details.phone) setPhone(details.phone)
+            if (details.website) setWebsite(details.website)
+          }
+        })
+      }
     })
     return () => { cleanup?.then(ac => ac?.unbindAll?.()) }
   }, [step])
@@ -149,6 +162,10 @@ export default function AddVenue() {
       default_vibe_score: 75,
       default_checkin_count: 0,
       trending: false,
+      phone: phone.trim() || null,
+      website: website.trim() || null,
+      hours: placeDetails?.hours ?? null,
+      cover_image_url: placeDetails?.photoRef ?? null,
     }
 
     const { error: err } = await supabase.from('venues').insert(payload)
@@ -225,7 +242,7 @@ export default function AddVenue() {
         </p>
         <button className="btn-primary" onClick={() => navigate('/map')}>Back to Map</button>
         <button
-          onClick={() => { setDone(false); setStep(0); setName(''); setType(''); setAddress(''); setGeoResult(null); setTags([]) }}
+          onClick={() => { setDone(false); setStep(0); setName(''); setType(''); setAddress(''); setGeoResult(null); setTags([]); setPlaceDetails(null); setPhone(''); setWebsite('') }}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, marginTop: 12, cursor: 'pointer' }}
         >
           Submit another venue
@@ -296,6 +313,34 @@ export default function AddVenue() {
                 outline: 'none', marginBottom: 16,
               }}
             />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  Phone
+                  {placeDetails?.phone && <span style={{ color: 'var(--accent-cyan)', marginLeft: 6, fontWeight: 400 }}>auto-filled</span>}
+                </p>
+                <input
+                  className="input-field"
+                  placeholder="(215) 555-0100"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  Website
+                  {placeDetails?.website && <span style={{ color: 'var(--accent-cyan)', marginLeft: 6, fontWeight: 400 }}>auto-filled</span>}
+                </p>
+                <input
+                  className="input-field"
+                  placeholder="venue.com"
+                  value={website}
+                  onChange={e => setWebsite(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+            </div>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>Venue type</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {VENUE_TYPES.map(t => (
