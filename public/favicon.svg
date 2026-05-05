@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B2B"/>
+      <stop offset="100%" stop-color="#FF3B5C"/>
+    </linearGradient>
+  </defs>
+  <!-- Pin body -->
+  <path d="M50 8 C32 8 18 22 18 40 C18 60 50 92 50 92 C50 92 82 60 82 40 C82 22 68 8 50 8 Z" fill="url(#g)"/>
+  <!-- Inner circle -->
+  <circle cx="50" cy="40" r="13" fill="#0A0A12" opacity="0.85"/>
+  <!-- Pulse dot -->
+  <circle cx="50" cy="40" r="5" fill="white"/>
+</svg>

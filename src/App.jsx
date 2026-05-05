@@ -14,6 +14,8 @@ import ProfileSetup from './pages/ProfileSetup'
 import Auth from './pages/Auth'
 import AddVenue from './pages/AddVenue'
 import Admin from './pages/Admin'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import { isConfigured } from './lib/supabase'
 
 // Captures /join/:code and redirects to auth, preserving the ref param
@@ -67,7 +69,8 @@ function AppInner() {
 
   const isAddVenue = location.pathname === '/add-venue'
   const isAdmin    = location.pathname === '/admin'
-  const hideNav = isOnboarding || isAuth || isProfileSetup || isAddVenue || isAdmin
+  const isLegal    = location.pathname === '/terms' || location.pathname === '/privacy'
+  const hideNav = isOnboarding || isAuth || isProfileSetup || isAddVenue || isAdmin || isLegal
 
   return (
     <div className="app">
@@ -84,6 +87,8 @@ function AppInner() {
         <Route path="/venue/:id"     element={<VenueDetail />} />
         <Route path="/add-venue"     element={<AddVenue />} />
         <Route path="/admin"         element={<Admin />} />
+        <Route path="/terms"         element={<Terms />} />
+        <Route path="/privacy"       element={<Privacy />} />
       </Routes>
       {!hideNav && <BottomNav unreadCount={unreadCount} />}
       {isConfigured && signUpVisible && !isAuthenticated && <SignUpModal onClose={closeSignUp} />}
